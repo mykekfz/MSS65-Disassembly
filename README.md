@@ -1,15 +1,17 @@
 # MSS65-Disassembly
-MSS65 V452 – A2L definitions and Ghidra analysis 
+MSS65 V452 / V912 – A2L definitions and Ghidra analysis 
 
-Community reverse-engineering project for the Siemens/BMW MSS65 engine control unit (S85 V10),
-calibration 160e, program **V452.01-B204.00**, data set **0569Q60Z160E**.
+Community reverse-engineering project for the Siemens/BMW MSS65 engine control unit (S85 V10):
+
+- calibration 160e, program **V452.01-B204.00**, data set **0569Q60Z160E** – A2L, Ghidra analysis, decompiled C
+- program **V912.00-B204.00** (7842123A), data set **0569Q60Z520E** (A7842800) – A2L
 
 Created by ZiMMie for the **M5Board** and **Nam3Forum** communities.
 
 This project exists to make this information freely available to everyone: to share the work,
 encourage collaboration, and let others learn from it, use it and add their own knowledge.
-The reference material is based on publicly available program data. The V452 program was
-disassembled and analysed to place and verify the definitions for this calibration.
+The reference material is based on publicly available program data. The V452 and V912 programs were
+disassembled and analysed to place and verify the definitions for each calibration.
 
 This is a community effort, and every contribution matters. Corrections, additional findings,
 technical knowledge and general feedback are all very welcome.
@@ -20,38 +22,41 @@ technical knowledge and general feedback are all very welcome.
 
 | File | Description |
 |---|---|
-| `MSS65_V452_INJ.a2l` | A2L for the **injection** processor – calibration (maps, curves, constants) and RAM measurements |
-| `MSS65_V452_IGN.a2l` | A2L for the **ignition** processor – calibration and RAM measurements |
-| `MSS65_V452_INJ.bin.gzf` | Ghidra program archive, injection processor – disassembled, functions created, calibration and RAM labels applied |
-| `MSS65_V452_IGN.bin.gzf` | Ghidra program archive, ignition processor – same as above |
-| `MSS65_V452_INJ.bin.c` | Decompiled C export of the injection program (Ghidra), with labels |
-| `MSS65_V452_IGN.bin.c` | Decompiled C export of the ignition program (Ghidra), with labels |
-| `INJ_Func` | Function list of the injection program |
-| `IGN_Func` | Function list of the ignition program |
+| `MSS65_V452_INJ.a2l` | V452 A2L for the **injection** processor – calibration (maps, curves, constants) and RAM measurements |
+| `MSS65_V452_IGN.a2l` | V452 A2L for the **ignition** processor – calibration and RAM measurements |
+| `MSS65_V452_INJ.bin.gzf` | Ghidra program archive, V452 injection processor – disassembled, functions created, calibration and RAM labels applied |
+| `MSS65_V452_IGN.bin.gzf` | Ghidra program archive, V452 ignition processor – same as above |
+| `MSS65_V452_INJ.bin.c` | Decompiled C export of the V452 injection program (Ghidra), with labels |
+| `MSS65_V452_IGN.bin.c` | Decompiled C export of the V452 ignition program (Ghidra), with labels |
+| `INJ_Func` | Function list of the V452 injection program |
+| `IGN_Func` | Function list of the V452 ignition program |
+| `MSS65_V912_INJ.a2l` | V912 A2L for the **injection** processor – calibration only |
+| `MSS65_V912_IGN.a2l` | V912 A2L for the **ignition** processor – calibration only |
 
 ## Program identification
 
-| Item | Value |
-|---|---|
-| ECU | MSS65 (two PowerPC MPC5xx processors: injection + ignition) |
-| Engine | S85B50 V10 |
-| Program | V452.01-B204.00 (`K_VERS_PROG` = 452) |
-| Data set | 0569Q60Z160E |
-| Calibration | 160e |
-| EPK | `V452` at 0x70289 (both processors) |
+| Item | V452 | V912 |
+|---|---|---|
+| ECU | MSS65 (two PowerPC MPC5xx processors: injection + ignition) | same |
+| Engine | S85B50 V10 | same |
+| Program | V452.01-B204.00 (`K_VERS_PROG` = 452) | V912.00-B204.00 (7842123A) |
+| Data set | 0569Q60Z160E | 0569Q60Z520E (A7842800) |
+| Calibration | 160e | 520e |
+| EPK | `V452` at 0x70289 (both processors) | `V912` at 0x70289 (both processors) |
 
 ## Memory layout
 
 **Full read (5 MB):** injection image `0x000000–0x27FFFF`, ignition image `0x280000–0x4FFFFF`.
-Each processor sees its own image at address `0x0`.
 
 | Range (CPU address) | Content |
 |---|---|
-| `0x00000–0x6FFFF` | Internal flash – program code |
+| `0x00000–0x6FFFF` | Internal flash – program code (`0x00000–0x0FFFF` = boot sector) |
 | `0x70000–0x7FFFF` | Calibration (the A2L addresses refer to this range) |
-| `0x80000–0x27FFFF` | External flash – program code |
+| `0x400000–0x5FFFFF` | External flash – program code runs from `0x450000` |
 | `0x3F0000–0x40FFFF` | RAM (measurements) |
 
+- Within each image of the full read, file offsets `0x00000–0x7FFFF` are the internal flash (CPU address = file offset)
+  and file offset `0x80000+` is the external flash (CPU address = file offset + `0x380000`, e.g. file `0xD0000` = CPU `0x450000`).
 - Small-data base registers: `r2 = 0x78280` (both), `r13 = 0x400060` (INJ) / `0x400140` (IGN).
 - **128 KB calibration file:** injection calibration = file `0x00000–0x0FFFF` (CPU `0x70000` + offset),
   ignition calibration = file `0x10000–0x1FFFF` (CPU address − `0x60000`).
@@ -59,18 +64,31 @@ Each processor sees its own image at address `0x0`.
 ## Using the files
 
 ### A2L
-- One A2L per processor. Load the A2L that matches the processor/region you are editing.
+- One A2L per processor and program version. Load the A2L that matches the program (EPK at 0x70289) and the
+  processor/region you are editing – V452 and V912 addresses are **not** interchangeable.
 - Tables are addressed at their header (point counts nx/ny), axes follow, then the values.
 - Every characteristic carries the original German description; most also carry an English text (`EN: …`)
   and, for the code-traced functions, a note on how the code uses it (`[Code V452 …]`).
-- **RAM measurements:** 98.7 % of the code-accessed addresses are confirmed against the V452 code.
+- **RAM measurements (V452):** 98.7 % of the code-accessed addresses are confirmed against the V452 code.
   Measurements marked **`V452 CHECK`** are **not valid** in this program (fuel-pressure controller block
   `0x3FCCB4–0x3FCD0D` and injector cut-out test block `0x3FBCD8–0x3FBCFD`, injection processor).
 
-### Ghidra
+### V912 A2L
+- Placed against the V912 program and calibration by table structure, code read-width evidence and value comparison
+  (4,746 injection / 3,594 ignition characteristics).
+- The ignition calibration layout matches V452; the injection calibration is reorganised, so injection addresses differ.
+- Characteristics that could not be placed with confidence are left out, including most of the
+  generator / power-management / IBS block (rewritten in V912).
+- No RAM measurements yet – the V912 RAM layout differs from V452 and has not been re-mapped.
+- `[Code V452 …]` notes describe the V452 code and are kept for reference.
+
+### Ghidra (V452)
 1. File › Import File › select the `.gzf` → the program opens with all functions, labels and comments.
 2. Language is PowerPC:BE:32:default, base address 0x0, RAM block and r2/r13 already set.
 3. Calibration labels use the A2L names; RAM labels use the measurement names (`CHK_` prefix = address not verified).
+4. Each processor image is loaded flat from 0x0, so the external-flash code appears at `0x80000+` instead of its
+   CPU address `0x450000+`. Branch targets and pointers into external flash use CPU addresses – subtract `0x380000`
+   to find them in the archive.
 
 ### Decompiled C
 The `.bin.c` files are plain-text Ghidra C exports – searchable for any map, constant or RAM name to see where and
@@ -78,7 +96,8 @@ how the program uses it.
 
 ## Contributing
 Corrections, additional findings and translations are welcome – open an issue or a pull request.
-When reporting a finding, please give the processor (INJ/IGN), the address and, if possible, the function that reads it.
+When reporting a finding, please give the program version (V452/V912), the processor (INJ/IGN), the address and,
+if possible, the function that reads it.
 
 ## Disclaimer
 Provided as-is for research and education. Use entirely at your own risk – no responsibility is accepted for any
